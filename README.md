@@ -19,7 +19,9 @@ Local workspace for experimenting with CodinGame Winter Challenge 2026 bots.
 
 ## Commit style
 
-This repo is configured for Conventional Commits.
+This repo uses Conventional Commits by convention.
+Local hook enforcement is intentionally disabled for now because Git-for-Windows is failing when hooks spawn shell scripts in this environment.
+Use the commit template and keep commit subjects in Conventional Commits form.
 
 Examples:
 
@@ -46,6 +48,34 @@ git submodule add https://github.com/CodinGame/WinterChallenge2026-Exotec.git en
 ```
 
 For contest work, submodule is usually the cleanest choice.
+
+## Local entrypoints
+
+- Build the TypeScript bot:
+
+```powershell
+npm.cmd run build
+```
+
+- Run the TypeScript entrypoint that launches one local match:
+
+```powershell
+npm.cmd run match
+```
+
+- Install the engine artifact into your local Maven cache:
+
+```powershell
+mvn.cmd -f engine/pom.xml install -DskipTests
+```
+
+- Launch a local match through the custom runner module:
+
+```powershell
+mvn.cmd -f local-runner/pom.xml exec:java -Dexec.args="--player1 node dist/bot/cli.js --player2 python engine/config/Boss.py --seed 1 --port 8888"
+```
+
+The custom runner exists so your repo can control agents and seeds without editing the upstream submodule.
 
 ## ML path
 

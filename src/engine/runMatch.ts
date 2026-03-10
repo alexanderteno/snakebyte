@@ -1,33 +1,22 @@
-import path from "node:path";
 import { spawn } from "node:child_process";
+import type { LocalRunnerOptions } from "./localRunner.js";
+import { buildLocalRunnerCommand } from "./localRunner.js";
 
-export interface EngineCommand {
-  cwd: string;
-  command: string;
-  args: string[];
+export interface MatchCommandResult {
+  exitCode: number | null;
 }
 
-export function buildEngineCommand(engineDir: string): EngineCommand {
-  const cwd = path.resolve(engineDir);
-
-  return {
-    cwd,
-    command: "java",
-    args: ["-version"],
-  };
-}
-
-export async function runEngineCommand(engineDir: string): Promise<{ exitCode: number | null }> {
-  const command = buildEngineCommand(engineDir);
+export async function runMatch(options: LocalRunnerOptions): Promise<MatchCommandResult> {
+  const command = buildLocalRunnerCommand(options);
 
   return new Promise((resolve, reject) => {
     const child = spawn(command.command, command.args, {
       cwd: command.cwd,
-      stdio: "ignore",
+      stdio: "inherit",
+      shell: false,
     });
 
     child.once("error", reject);
     child.once("close", (exitCode) => resolve({ exitCode }));
   });
 }
-
