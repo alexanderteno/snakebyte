@@ -19,6 +19,7 @@ export function buildLocalRunnerArgs(options: LocalRunnerOptions): string[] {
   const args = [
     "-f",
     path.resolve(process.cwd(), "local-runner", "pom.xml"),
+    "compile",
     "exec:java",
     `-Dexec.args=--engineDir "${options.engineDir}" --player1 "${options.player1Command}" --player2 "${options.player2Command}"`,
   ];

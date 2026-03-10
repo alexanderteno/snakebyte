@@ -24,7 +24,14 @@ export interface FrameState {
 }
 
 function parseCoord(token: string): Coord {
-  const [x, y] = token.split(",").map(Number);
+  const [xToken, yToken] = token.split(",");
+  const x = Number(xToken);
+  const y = Number(yToken);
+
+  if (Number.isNaN(x) || Number.isNaN(y)) {
+    throw new Error(`Invalid coordinate token: ${token}`);
+  }
+
   return { x, y };
 }
 

@@ -9,6 +9,7 @@ public final class LocalRunner {
 
     public static void main(String[] args) {
         RunnerOptions options = RunnerOptions.parse(args);
+        System.setProperty("user.dir", options.engineDir);
 
         MultiplayerGameRunner gameRunner = new MultiplayerGameRunner();
 
@@ -24,12 +25,14 @@ public final class LocalRunner {
     private static final class RunnerOptions {
         private final String player1Command;
         private final String player2Command;
+        private final String engineDir;
         private final Long seed;
         private final int port;
 
-        private RunnerOptions(String player1Command, String player2Command, Long seed, int port) {
+        private RunnerOptions(String player1Command, String player2Command, String engineDir, Long seed, int port) {
             this.player1Command = player1Command;
             this.player2Command = player2Command;
+            this.engineDir = engineDir;
             this.seed = seed;
             this.port = port;
         }
@@ -37,6 +40,7 @@ public final class LocalRunner {
         private static RunnerOptions parse(String[] args) {
             String player1 = null;
             String player2 = null;
+            String engineDir = null;
             Long seed = null;
             int port = 8888;
 
@@ -57,18 +61,18 @@ public final class LocalRunner {
                         port = Integer.parseInt(requireValue(args, ++i, arg));
                         break;
                     case "--engineDir":
-                        requireValue(args, ++i, arg);
+                        engineDir = requireValue(args, ++i, arg);
                         break;
                     default:
                         throw new IllegalArgumentException("Unknown argument: " + arg);
                 }
             }
 
-            if (player1 == null || player2 == null) {
-                throw new IllegalArgumentException("Both --player1 and --player2 are required");
+            if (player1 == null || player2 == null || engineDir == null) {
+                throw new IllegalArgumentException("Arguments --player1, --player2, and --engineDir are required");
             }
 
-            return new RunnerOptions(player1, player2, seed, port);
+            return new RunnerOptions(player1, player2, engineDir, seed, port);
         }
 
         private static String requireValue(String[] args, int index, String optionName) {

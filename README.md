@@ -69,6 +69,12 @@ npm.cmd run match
 npm.cmd run match:ts
 ```
 
+- Run the official starter bot against the Python boss bot:
+
+```powershell
+npm.cmd run match:starter
+```
+
 - Install the engine artifact into your local Maven cache:
 
 ```powershell
@@ -103,6 +109,7 @@ Available helper scripts:
 - `npm.cmd run docker:engine-install`: install the Java engine artifact into the container Maven cache
 - `npm.cmd run docker:bootstrap`: run both npm install and engine install in one step
 - `npm.cmd run docker:match`: launch the TypeScript match entrypoint inside the container
+- `npm.cmd run docker:match:starter`: launch the official starter bot inside the container for a smoke test
 
 Equivalent raw commands if you prefer Docker directly:
 
