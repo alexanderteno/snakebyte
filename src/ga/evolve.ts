@@ -75,7 +75,13 @@ function compareTournamentResults(left: TournamentResult, right: TournamentResul
   if (right.averageScoreDelta !== left.averageScoreDelta) {
     return right.averageScoreDelta - left.averageScoreDelta;
   }
-  return right.winRate - left.winRate;
+  if (left.drawRate !== right.drawRate) {
+    return left.drawRate - right.drawRate;
+  }
+  if (right.winRate !== left.winRate) {
+    return right.winRate - left.winRate;
+  }
+  return right.averageNonDrawMargin - left.averageNonDrawMargin;
 }
 
 function uniqueCandidates(candidate: Candidate, index: number, candidates: Candidate[]): boolean {

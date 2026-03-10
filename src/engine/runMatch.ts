@@ -29,7 +29,10 @@ export interface MatchCommandResult {
   stderr: string;
 }
 
-export async function runMatch(options: LocalRunnerOptions): Promise<MatchCommandResult> {
+export async function runMatch(
+  options: LocalRunnerOptions,
+  runOptions: { quiet?: boolean } = {},
+): Promise<MatchCommandResult> {
   const command = buildLocalRunnerCommand(options);
   const useShell = process.platform === "win32";
 
@@ -47,11 +50,15 @@ export async function runMatch(options: LocalRunnerOptions): Promise<MatchComman
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk: string) => {
       stdout += chunk;
-      process.stdout.write(chunk);
+      if (!runOptions.quiet) {
+        process.stdout.write(chunk);
+      }
     });
     child.stderr.on("data", (chunk: string) => {
       stderr += chunk;
-      process.stderr.write(chunk);
+      if (!runOptions.quiet) {
+        process.stderr.write(chunk);
+      }
     });
 
     child.once("error", (error) => {

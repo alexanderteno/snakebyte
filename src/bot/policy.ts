@@ -25,6 +25,13 @@ export function chooseCommand(
     .map((jointAction) => evaluateJointAction(runtimeState, jointAction, weights))
     .reduce(selectBestEvaluation);
 
+  maybeDumpCandidates(
+    jointActions
+      .map((jointAction) => evaluateJointAction(runtimeState, jointAction, weights))
+      .sort((left, right) => right.score - left.score)
+      .slice(0, 5),
+  );
+
   return formatJointAction(best.jointAction);
 }
 
@@ -33,4 +40,16 @@ function selectBestEvaluation(currentBest: EvaluationResult, candidate: Evaluati
     return candidate;
   }
   return currentBest;
+}
+
+function maybeDumpCandidates(results: EvaluationResult[]): void {
+  if (process.env.SNAKEBYTE_DEBUG_CANDIDATES !== "1") {
+    return;
+  }
+
+  for (const result of results) {
+    process.stderr.write(
+      `${formatJointAction(result.jointAction)} score=${result.score.toFixed(2)} features=${JSON.stringify(result.features)}\n`,
+    );
+  }
 }

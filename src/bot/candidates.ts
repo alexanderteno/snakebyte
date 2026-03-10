@@ -3,7 +3,7 @@ import { DIRECTIONS } from "./actions.js";
 import { evaluateJointAction } from "./evaluator.js";
 import type { CandidateWeights } from "../ga/types.js";
 import type { RuntimeState, Snakebot } from "./state.js";
-import { nearestAppleDistance, turnIsLegal } from "./state.js";
+import { moveCoord, turnIsLegal } from "./state.js";
 
 export function buildCandidateJointActions(
   state: RuntimeState,
@@ -24,22 +24,13 @@ export function buildCandidateJointActions(
 function rankSnakebotDirections(state: RuntimeState, snakebot: Snakebot): Direction[] {
   return [...DIRECTIONS]
     .filter((direction) => turnIsLegal(snakebot, direction))
-    .sort((left, right) => scoreDirection(state, snakebot, right) - scoreDirection(state, snakebot, left));
-}
-
-function scoreDirection(state: RuntimeState, snakebot: Snakebot, direction: Direction): number {
-  const next = direction === snakebot.facing ? snakebot.head : snakebot.head;
-  const intended = direction;
-  const target = moveTarget(snakebot, intended);
-  let score = 0;
-  score -= nearestAppleDistance(target, state.apples);
-  if (target.x < 0 || target.x >= state.width || target.y < 0 || target.y >= state.height) {
-    score -= 100;
-  }
-  if (state.occupancy.has(`${target.x},${target.y}`)) {
-    score -= 50;
-  }
-  return score;
+    .filter((direction) => {
+      const target = moveCoord(snakebot.head, direction);
+      if (target.x < 0 || target.x >= state.width || target.y < 0 || target.y >= state.height) {
+        return false;
+      }
+      return state.global.rows[target.y]?.[target.x] !== "#";
+    });
 }
 
 function combineJointActions(
@@ -78,17 +69,4 @@ function combineJointActions(
   recurse(0, []);
 
   return results;
-}
-
-function moveTarget(snakebot: Snakebot, direction: Direction) {
-  switch (direction) {
-    case "UP":
-      return { x: snakebot.head.x, y: snakebot.head.y - 1 };
-    case "DOWN":
-      return { x: snakebot.head.x, y: snakebot.head.y + 1 };
-    case "LEFT":
-      return { x: snakebot.head.x - 1, y: snakebot.head.y };
-    case "RIGHT":
-      return { x: snakebot.head.x + 1, y: snakebot.head.y };
-  }
 }

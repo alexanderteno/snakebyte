@@ -7,7 +7,10 @@ export interface Snakebot extends BirdState {
   head: Coord;
   length: number;
   facing: Direction;
+  owner: SnakebotOwner;
 }
+
+export type SnakebotOwner = "me" | "opponent";
 
 export interface CellInfo {
   wall: boolean;
@@ -43,10 +46,10 @@ export function createRuntimeState(
   const appleSet = new Set(frameState.apples.map(coordKey));
   const mySnakebots = frameState.birds
     .filter((bird) => globalState.myBirdIds.includes(bird.id))
-    .map(toSnakebot);
+    .map((bird) => toSnakebot(bird, "me"));
   const opponentSnakebots = frameState.birds
     .filter((bird) => globalState.opponentBirdIds.includes(bird.id))
-    .map(toSnakebot);
+    .map((bird) => toSnakebot(bird, "opponent"));
 
   return {
     global: globalState,
@@ -106,12 +109,13 @@ export function nearestAppleDistance(head: Coord, apples: Coord[]): number {
   );
 }
 
-function toSnakebot(bird: BirdState): Snakebot {
+function toSnakebot(bird: BirdState, owner: SnakebotOwner): Snakebot {
   return {
     ...bird,
     head: bird.body[0] ?? { x: 0, y: 0 },
     length: bird.body.length,
     facing: inferFacing(bird),
+    owner,
   };
 }
 

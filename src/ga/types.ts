@@ -26,4 +26,5 @@ export interface TournamentResult {
   winRate: number;
   drawRate: number;
   lossRate: number;
+  averageNonDrawMargin: number;
 }

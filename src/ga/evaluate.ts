@@ -23,6 +23,7 @@ export async function evaluateCandidateAgainstPool(
 
   const wins = matches.filter((match) => match.win).length;
   const draws = matches.filter((match) => match.draw).length;
+  const nonDrawMargins = matches.filter((match) => !match.draw).map((match) => match.scoreDelta);
 
   return {
     candidateId: candidate.id,
@@ -31,6 +32,7 @@ export async function evaluateCandidateAgainstPool(
     winRate: wins / Math.max(matches.length, 1),
     drawRate: draws / Math.max(matches.length, 1),
     lossRate: (matches.length - wins - draws) / Math.max(matches.length, 1),
+    averageNonDrawMargin: average(nonDrawMargins),
   };
 }
 
@@ -51,7 +53,7 @@ async function runHeadlessMatch(
     player2Command: seat === 0 ? opponentCommand : candidateCommand,
     seed,
     simulate: true,
-  });
+  }, { quiet: true });
 
   if (!summary.summary) {
     throw new Error(`Missing match summary for candidate ${candidate.id} vs ${opponent.id} on seed ${seed}`);

@@ -3,14 +3,11 @@ import type { JointAction } from "./actions.js";
 import type { Coord } from "./protocol.js";
 import {
   coordKey,
-  inBounds,
-  isSolid,
   isWall,
-  moveCoord,
   nearestAppleDistance,
   type RuntimeState,
-  type Snakebot,
 } from "./state.js";
+import { simulateTurn, type ResolvedTurn, type SimulatedState, type TurnEvent } from "./simulator.js";
 
 export interface FeatureVector {
   survivalImmediate: number;
@@ -31,21 +28,7 @@ export interface EvaluationResult {
   jointAction: JointAction;
   features: FeatureVector;
   score: number;
-}
-
-interface PredictedSnakebot {
-  snakebotId: number;
-  nextHead: Coord;
-  aliveImmediate: boolean;
-  survivesAfterFall: boolean;
-  ateApple: boolean;
-  selfCollisionRisk: number;
-  enemyCollisionRisk: number;
-  outOfBoundsRisk: number;
-  supportStability: number;
-  reachableSpace: number;
-  headExposure: number;
-  appleRaceMargin: number;
+  resolvedTurn: ResolvedTurn;
 }
 
 export function evaluateJointAction(
@@ -53,39 +36,18 @@ export function evaluateJointAction(
   jointAction: JointAction,
   weights: CandidateWeights,
 ): EvaluationResult {
-  const predictions = state.mySnakebots.map((snakebot) =>
-    predictSnakebot(state, snakebot, jointAction.actions.find((action) => action.snakebotId === snakebot.id)?.direction),
-  );
-
-  const applesEaten = predictions.filter((prediction) => prediction.ateApple).length;
-  const aliveImmediateCount = predictions.filter((prediction) => prediction.aliveImmediate).length;
-  const aliveAfterFallCount = predictions.filter((prediction) => prediction.survivesAfterFall).length;
-
-  const features: FeatureVector = {
-    survivalImmediate: aliveImmediateCount / Math.max(predictions.length, 1),
-    survivalAfterFall: aliveAfterFallCount / Math.max(predictions.length, 1),
-    applesEaten,
-    nearestAppleDistance: average(predictions.map((prediction) => nearestAppleDistance(prediction.nextHead, state.apples))),
-    appleRaceMargin: average(predictions.map((prediction) => prediction.appleRaceMargin)),
-    supportStability: average(predictions.map((prediction) => prediction.supportStability)),
-    selfCollisionRisk: average(predictions.map((prediction) => prediction.selfCollisionRisk)),
-    enemyCollisionRisk: average(predictions.map((prediction) => prediction.enemyCollisionRisk)),
-    outOfBoundsRisk: average(predictions.map((prediction) => prediction.outOfBoundsRisk)),
-    reachableSpace: average(predictions.map((prediction) => prediction.reachableSpace)),
-    bodyCountDelta: (sum(state.mySnakebots.map((snakebot) => snakebot.length)) + applesEaten)
-      - sum(state.opponentSnakebots.map((snakebot) => snakebot.length)),
-    headExposure: average(predictions.map((prediction) => prediction.headExposure)),
-  };
+  const resolvedTurn = simulateTurn(state, jointAction);
+  const features = extractFeatures(state, resolvedTurn);
 
   let score = 0;
   for (const [key, value] of Object.entries(features) as Array<[keyof FeatureVector, number]>) {
     score += value * weights[key];
   }
 
-  if (aliveImmediateCount < predictions.length) {
+  if (features.survivalImmediate < 1) {
     score -= 1_000;
   }
-  if (aliveAfterFallCount < predictions.length) {
+  if (features.survivalAfterFall < 1) {
     score -= 750;
   }
 
@@ -93,63 +55,35 @@ export function evaluateJointAction(
     jointAction,
     features,
     score,
+    resolvedTurn,
   };
 }
 
-function predictSnakebot(
-  state: RuntimeState,
-  snakebot: Snakebot,
-  direction = snakebot.facing,
-): PredictedSnakebot {
-  const nextHead = moveCoord(snakebot.head, direction);
-  const occupiedBy = state.occupancy.get(coordKey(nextHead));
-  const outOfBoundsRisk = inBounds(state, nextHead) ? 0 : 1;
-  const wallCollision = inBounds(state, nextHead) && isWall(state, nextHead);
-  const selfCollisionRisk = occupiedBy === snakebot.id ? 1 : 0;
-  const enemyCollisionRisk = occupiedBy !== undefined && occupiedBy !== snakebot.id ? 1 : 0;
-  const ateApple = state.appleSet.has(coordKey(nextHead));
-  const aliveImmediate = outOfBoundsRisk === 0 && !wallCollision && selfCollisionRisk === 0 && enemyCollisionRisk === 0;
-  const settledHead = aliveImmediate ? settleAfterFall(state, nextHead) : nextHead;
-  const survivesAfterFall = aliveImmediate && inBounds(state, settledHead);
-  const supportStability = survivesAfterFall && hasSupportBelow(state, settledHead) ? 1 : 0;
-  const reachableSpace = survivesAfterFall ? floodFillSpace(state, settledHead, 12) : 0;
-  const headExposure = survivesAfterFall ? countEnemyThreats(state, settledHead) : 1;
-  const myDistance = nearestAppleDistance(settledHead, state.apples);
-  const opponentDistance = nearestOpponentAppleDistance(state, settledHead);
+function extractFeatures(state: RuntimeState, resolvedTurn: ResolvedTurn): FeatureVector {
+  const nextState = resolvedTurn.nextState;
+  const ownedCount = Math.max(state.mySnakebots.length, 1);
+  const supportStability = average(nextState.mySnakebots.map((snakebot) => hasSupportBelow(nextState, snakebot.head) ? 1 : 0));
+  const nearestOwnAppleDistances = nextState.mySnakebots.map((snakebot) => nearestAppleDistance(snakebot.head, nextState.apples));
+  const nearestOppAppleDistances = nextState.opponentSnakebots.map((snakebot) => nearestAppleDistance(snakebot.head, nextState.apples));
 
   return {
-    snakebotId: snakebot.id,
-    nextHead: settledHead,
-    aliveImmediate,
-    survivesAfterFall,
-    ateApple,
-    selfCollisionRisk,
-    enemyCollisionRisk,
-    outOfBoundsRisk,
+    survivalImmediate: resolvedTurn.aliveAfterBeheadingIds.size / ownedCount,
+    survivalAfterFall: nextState.mySnakebots.length / ownedCount,
+    applesEaten: countEvents(resolvedTurn.events, "eat", "me"),
+    nearestAppleDistance: average(nearestOwnAppleDistances),
+    appleRaceMargin: average(nearestOppAppleDistances) - average(nearestOwnAppleDistances),
     supportStability,
-    reachableSpace,
-    headExposure,
-    appleRaceMargin: opponentDistance - myDistance,
+    selfCollisionRisk: countEvents(resolvedTurn.events, "behead", "me"),
+    enemyCollisionRisk: countEvents(resolvedTurn.events, "behead", "opponent"),
+    outOfBoundsRisk: countEvents(resolvedTurn.events, "outOfBounds", "me"),
+    reachableSpace: average(nextState.mySnakebots.map((snakebot) => floodFillSpace(nextState, snakebot.head, 20))),
+    bodyCountDelta: sum(nextState.mySnakebots.map((snakebot) => snakebot.body.length))
+      - sum(nextState.opponentSnakebots.map((snakebot) => snakebot.body.length)),
+    headExposure: average(nextState.mySnakebots.map((snakebot) => countEnemyThreats(nextState, snakebot.head))),
   };
 }
 
-function settleAfterFall(state: RuntimeState, start: Coord): Coord {
-  let current = start;
-  while (true) {
-    const next = { x: current.x, y: current.y + 1 };
-    if (!inBounds(state, next) || isSolid(state, next)) {
-      return current;
-    }
-    current = next;
-  }
-}
-
-function hasSupportBelow(state: RuntimeState, coord: Coord): boolean {
-  const below = { x: coord.x, y: coord.y + 1 };
-  return !inBounds(state, below) || isSolid(state, below);
-}
-
-function floodFillSpace(state: RuntimeState, start: Coord, maxCells: number): number {
+function floodFillSpace(state: SimulatedState, start: Coord, maxCells: number): number {
   const visited = new Set<string>();
   const queue: Coord[] = [start];
 
@@ -160,7 +94,7 @@ function floodFillSpace(state: RuntimeState, start: Coord, maxCells: number): nu
     }
 
     const key = coordKey(current);
-    if (visited.has(key) || !inBounds(state, current) || isWall(state, current)) {
+    if (visited.has(key) || !inBoundsState(state, current) || isWallState(state, current)) {
       continue;
     }
 
@@ -175,24 +109,8 @@ function floodFillSpace(state: RuntimeState, start: Coord, maxCells: number): nu
   return visited.size;
 }
 
-function countEnemyThreats(state: RuntimeState, coord: Coord): number {
+function countEnemyThreats(state: SimulatedState, coord: Coord): number {
   return state.opponentSnakebots.filter((snakebot) => manhattanDistance(snakebot.head, coord) <= 2).length;
-}
-
-function nearestOpponentAppleDistance(state: RuntimeState, target: Coord): number {
-  if (state.opponentSnakebots.length === 0 || state.apples.length === 0) {
-    return 0;
-  }
-
-  const firstOpponent = state.opponentSnakebots[0];
-  if (!firstOpponent) {
-    return 0;
-  }
-
-  return Math.min(
-    ...state.opponentSnakebots.map((snakebot) => nearestAppleDistance(snakebot.head, state.apples)),
-    manhattanDistance(target, firstOpponent.head),
-  );
 }
 
 function neighbors(coord: Coord): Coord[] {
@@ -217,4 +135,24 @@ function average(values: number[]): number {
 
 function sum(values: number[]): number {
   return values.reduce((total, value) => total + value, 0);
+}
+
+function countEvents(events: TurnEvent[], kind: TurnEvent["kind"], owner: TurnEvent["owner"]): number {
+  return events.filter((event) => event.kind === kind && event.owner === owner).length;
+}
+
+function inBoundsState(state: SimulatedState, coord: Coord): boolean {
+  return coord.x >= 0 && coord.x < state.width && coord.y >= 0 && coord.y < state.height;
+}
+
+function isWallState(state: SimulatedState, coord: Coord): boolean {
+  return state.rows[coord.y]?.[coord.x] === "#";
+}
+
+function hasSupportBelow(state: SimulatedState, coord: Coord): boolean {
+  const below = { x: coord.x, y: coord.y + 1 };
+  return !inBoundsState(state, below)
+    || state.rows[below.y]?.[below.x] === "#"
+    || state.apples.some((apple) => apple.x === below.x && apple.y === below.y)
+    || state.occupancy.has(coordKey(below));
 }
