@@ -87,6 +87,25 @@ The custom runner exists so your repo can control agents and seeds without editi
 
 The repository includes a single dev container intended for fast iteration without installing Java or Maven on the host.
 
+Common shortcuts from the host:
+
+```powershell
+npm.cmd run docker:build
+npm.cmd run docker:bootstrap
+npm.cmd run docker:match
+```
+
+Available helper scripts:
+
+- `npm.cmd run docker:build`: build the dev image
+- `npm.cmd run docker:shell`: open an interactive shell in the dev container
+- `npm.cmd run docker:npm-install`: install Node dependencies into the container volume
+- `npm.cmd run docker:engine-install`: install the Java engine artifact into the container Maven cache
+- `npm.cmd run docker:bootstrap`: run both npm install and engine install in one step
+- `npm.cmd run docker:match`: launch the TypeScript match entrypoint inside the container
+
+Equivalent raw commands if you prefer Docker directly:
+
 Build the image once:
 
 ```powershell
