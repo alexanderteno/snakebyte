@@ -63,6 +63,12 @@ npm.cmd run build
 npm.cmd run match
 ```
 
+- Run the match entrypoint directly from source without a TS build:
+
+```powershell
+npm.cmd run match:ts
+```
+
 - Install the engine artifact into your local Maven cache:
 
 ```powershell
@@ -76,6 +82,47 @@ mvn.cmd -f local-runner/pom.xml exec:java -Dexec.args="--player1 node dist/bot/c
 ```
 
 The custom runner exists so your repo can control agents and seeds without editing the upstream submodule.
+
+## Container workflow
+
+The repository includes a single dev container intended for fast iteration without installing Java or Maven on the host.
+
+Build the image once:
+
+```powershell
+docker compose build
+```
+
+Open a shell in the container:
+
+```powershell
+docker compose run --rm dev
+```
+
+Inside the container, install JS dependencies once into the container volume:
+
+```bash
+npm install
+```
+
+Build the upstream engine artifact into the container's Maven cache:
+
+```bash
+mvn -f engine/pom.xml install -DskipTests
+```
+
+Then iterate quickly from source:
+
+```bash
+npm run match:ts
+```
+
+Notes:
+
+- The repository is bind-mounted into `/workspace`, so TypeScript edits on the host are visible immediately.
+- `node_modules` is stored in a named Docker volume to avoid Windows host/container package issues.
+- Maven dependencies are cached in a named Docker volume, so the engine does not redownload everything each run.
+- Rebuild the image only when the toolchain changes. Normal TypeScript edits do not require image rebuilds.
 
 ## ML path
 

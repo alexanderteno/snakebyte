@@ -37,7 +37,7 @@ export function buildLocalRunnerArgs(options: LocalRunnerOptions): string[] {
 export function buildLocalRunnerCommand(options: LocalRunnerOptions): ShellCommand {
   return {
     cwd: process.cwd(),
-    command: "mvn.cmd",
+    command: process.platform === "win32" ? "mvn.cmd" : "mvn",
     args: buildLocalRunnerArgs(options),
     options,
   };

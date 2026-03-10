@@ -10,7 +10,9 @@
     "start": "node dist/index.js",
     "dev": "node --loader tsx src/index.ts",
     "bot": "node dist/bot/cli.js",
-    "match": "node dist/play.js"
+    "bot:ts": "node --loader tsx src/bot/cli.ts",
+    "match": "node dist/play.js",
+    "match:ts": "node --loader tsx src/play.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

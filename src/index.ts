@@ -10,7 +10,7 @@ function main(): void {
   const engineCommand = buildLocalRunnerCommand({
     engineDir: defaultExperimentConfig.engineDir,
     player1Command: "node dist/bot/cli.js",
-    player2Command: "python engine/config/Boss.py",
+    player2Command: defaultExperimentConfig.sparringCommand,
     seed: 1,
     port: 8888,
   });

@@ -1,11 +1,12 @@
 import path from "node:path";
+import { defaultExperimentConfig } from "./config.js";
 import { runMatch } from "./engine/runMatch.js";
 
 async function main(): Promise<void> {
   const result = await runMatch({
     engineDir: path.resolve(process.cwd(), "engine"),
     player1Command: "node dist/bot/cli.js",
-    player2Command: "python engine/config/Boss.py",
+    player2Command: defaultExperimentConfig.sparringCommand,
     seed: 1,
     port: 8888,
   });

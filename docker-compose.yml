@@ -1,0 +1,17 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - node_modules:/workspace/node_modules
+      - maven_cache:/root/.m2
+    tty: true
+    stdin_open: true
+
+volumes:
+  node_modules:
+  maven_cache:
+

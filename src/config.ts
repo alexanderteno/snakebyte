@@ -13,12 +13,20 @@ export interface ExperimentConfig {
   populationSize: number;
   gamesPerCandidate: number;
   weightKeys: WeightKey[];
+  sparringCommand: string;
+}
+
+function defaultSparringCommand(): string {
+  return process.platform === "win32"
+    ? "python engine/config/Boss.py"
+    : "python3 engine/config/Boss.py";
 }
 
 export const defaultExperimentConfig: ExperimentConfig = {
   engineDir: path.resolve(process.cwd(), "engine"),
   populationSize: 24,
   gamesPerCandidate: 40,
+  sparringCommand: defaultSparringCommand(),
   weightKeys: [
     "survival",
     "appleDistance",
@@ -28,4 +36,3 @@ export const defaultExperimentConfig: ExperimentConfig = {
     "supportStability",
   ],
 };
-
