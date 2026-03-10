@@ -152,9 +152,12 @@ function doBeheadings(snakebots: SimulatedSnakebot[], rows: string[], events: Tu
   for (const snakebot of liveSnakebots) {
     const isInWall = getTileType(rows, snakebot.head) === "#";
     const intersectingSnakebots = liveSnakebots.filter((entry) => entry.body.some((coord) => coordsEqual(coord, snakebot.head)));
-    const isInOtherSnakebot = intersectingSnakebots.some((entry) => entry.id !== snakebot.id);
+    const isInSnakebot = intersectingSnakebots.some((entry) =>
+      entry.id !== snakebot.id
+      || entry.body.slice(1).some((coord) => coordsEqual(coord, snakebot.head))
+    );
 
-    if (isInWall || isInOtherSnakebot) {
+    if (isInWall || isInSnakebot) {
       snakebotsToBehead.push(snakebot);
     }
   }

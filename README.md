@@ -174,6 +174,30 @@ npm.cmd run match:vs-starter
 npm.cmd run match:self
 ```
 
+- Run a heuristic match with verbose top-candidate diagnostics:
+
+```powershell
+npm.cmd run match:debug
+```
+
+- Run a heuristic match with one-step lookahead enabled:
+
+```powershell
+npm.cmd run match:lookahead
+```
+
+- Run local simulator parity checks:
+
+```powershell
+npm.cmd run parity
+```
+
+- Run a bounded GA training loop that persists run artifacts:
+
+```powershell
+npm.cmd run ga:train
+```
+
 - Install the engine artifact into your local Maven cache:
 
 ```powershell
@@ -209,6 +233,10 @@ Available helper scripts:
 - `npm.cmd run docker:bootstrap`: run both npm install and engine install in one step
 - `npm.cmd run docker:match`: launch the TypeScript match entrypoint inside the container
 - `npm.cmd run docker:match:starter`: launch the official starter bot inside the container for a smoke test
+- `npm.cmd run docker:match:debug`: launch a verbose candidate-dump match inside the container
+- `npm.cmd run docker:match:lookahead`: launch a one-step-lookahead match inside the container
+- `npm.cmd run docker:parity`: run local simulator parity checks inside the container
+- `npm.cmd run docker:ga:train`: run a bounded GA training loop and persist run artifacts
 
 The automated match entrypoints now run the engine in non-interactive simulation mode and print a machine-readable JSON summary with scores, winner, fail cause, and referee summaries.
 
@@ -250,6 +278,18 @@ Notes:
 - `node_modules` is stored in a named Docker volume to avoid Windows host/container package issues.
 - Maven dependencies are cached in a named Docker volume, so the engine does not redownload everything each run.
 - Rebuild the image only when the toolchain changes. Normal TypeScript edits do not require image rebuilds.
+
+## Training Artifacts
+
+GA and parity tooling writes artifacts under `.snakebyte/`.
+
+- `.snakebyte/weights/`: candidate weight files
+- `.snakebyte/archive/`: archived elite candidates
+- `.snakebyte/generations/`: latest generation summaries
+- `.snakebyte/runs/`: per-run manifests, generation summaries, and top-candidate snapshots
+
+Use `SNAKEBYTE_DEBUG_CANDIDATES=1` for compact candidate dumps and `SNAKEBYTE_DEBUG_CANDIDATES=verbose` for full per-feature contributions and simulator events.
+Use `SNAKEBYTE_LOOKAHEAD=1` to enable the optional one-step lookahead layer.
 
 ## ML path
 

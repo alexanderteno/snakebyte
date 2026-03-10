@@ -11,8 +11,11 @@ export async function evaluateCandidateAgainstPool(
   seeds = defaultExperimentConfig.seedSet,
 ): Promise<TournamentResult> {
   const matches: TournamentMatchResult[] = [];
+  const evaluationOpponents = [candidate, ...opponents].filter((entry, index, values) =>
+    values.findIndex((candidateEntry) => candidateEntry.id === entry.id) === index
+  );
 
-  for (const opponent of opponents) {
+  for (const opponent of evaluationOpponents) {
     for (const seed of seeds) {
       for (const seat of [0, 1] as const) {
         const result = await runHeadlessMatch(candidate, opponent, seed, seat);

@@ -1,6 +1,7 @@
 import type { CandidateWeights } from "../ga/types.js";
 import type { JointAction } from "./actions.js";
 import type { Coord } from "./protocol.js";
+import type { CandidateDebugRecord, FeatureContribution } from "./debug.js";
 import {
   coordKey,
   isWall,
@@ -29,6 +30,7 @@ export interface EvaluationResult {
   features: FeatureVector;
   score: number;
   resolvedTurn: ResolvedTurn;
+  debug: CandidateDebugRecord;
 }
 
 export function evaluateJointAction(
@@ -38,11 +40,8 @@ export function evaluateJointAction(
 ): EvaluationResult {
   const resolvedTurn = simulateTurn(state, jointAction);
   const features = extractFeatures(state, resolvedTurn);
-
-  let score = 0;
-  for (const [key, value] of Object.entries(features) as Array<[keyof FeatureVector, number]>) {
-    score += value * weights[key];
-  }
+  const contributions = buildContributions(features, weights);
+  let score = sum(contributions.map((entry) => entry.contribution));
 
   if (features.survivalImmediate < 1) {
     score -= 1_000;
@@ -56,6 +55,28 @@ export function evaluateJointAction(
     features,
     score,
     resolvedTurn,
+    debug: {
+      jointAction: jointAction.actions.map((action) => `${action.snakebotId} ${action.direction}`).join(";") || "WAIT",
+      score,
+      features,
+      contributions,
+      events: resolvedTurn.events.map((event) => {
+        const record: CandidateDebugRecord["events"][number] = {
+          snakebotId: event.snakebotId,
+          owner: event.owner,
+          kind: event.kind,
+        };
+
+        if (event.amount !== undefined) {
+          record.amount = event.amount;
+        }
+        if (event.coord) {
+          record.coord = { ...event.coord };
+        }
+
+        return record;
+      }),
+    },
   };
 }
 
@@ -135,6 +156,15 @@ function average(values: number[]): number {
 
 function sum(values: number[]): number {
   return values.reduce((total, value) => total + value, 0);
+}
+
+function buildContributions(features: FeatureVector, weights: CandidateWeights): FeatureContribution[] {
+  return (Object.entries(features) as Array<[keyof FeatureVector, number]>).map(([name, value]) => ({
+    name,
+    value,
+    weight: weights[name],
+    contribution: value * weights[name],
+  }));
 }
 
 function countEvents(events: TurnEvent[], kind: TurnEvent["kind"], owner: TurnEvent["owner"]): number {

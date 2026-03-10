@@ -1,6 +1,13 @@
 import { defaultExperimentConfig } from "../config.js";
-import type { Candidate, TournamentResult } from "./types.js";
+import type { Candidate, GenerationSummary, RunManifest, TournamentResult } from "./types.js";
 import { evaluateCandidateAgainstPool } from "./evaluate.js";
+import {
+  archiveCandidate,
+  createRunManifest,
+  updateRunManifest,
+  writeGenerationSummary,
+  writeGenerationTopCandidates,
+} from "./io.js";
 import { mutateCandidate } from "./mutate.js";
 import { createRandomPopulation } from "./randomSearch.js";
 
@@ -20,16 +27,28 @@ export async function runEvolution(options: EvolutionOptions = {}): Promise<Gene
   const populationSize = options.populationSize ?? defaultExperimentConfig.populationSize;
   const maxGenerations = options.maxGenerations ?? defaultExperimentConfig.maxGenerations;
   const seedSet = options.seedSet ?? defaultExperimentConfig.seedSet;
+  const runId = new Date().toISOString().replaceAll(":", "-");
 
   let population = createRandomPopulation(
     populationSize,
     defaultExperimentConfig.weightKeys,
   );
   const archive: Candidate[] = [];
+  let previousElites: Candidate[] = [];
   const history: GenerationResult[] = [];
+  createRunManifest({
+    runId,
+    startedAt: new Date().toISOString(),
+    seedSet,
+    populationSize,
+    eliteCount: defaultExperimentConfig.eliteCount,
+    maxGenerations,
+    generationTopCount: defaultExperimentConfig.generationTopCount,
+    bestCandidateIds: [],
+  });
 
   for (let generation = 0; generation < maxGenerations; generation += 1) {
-    const opponentPool = buildOpponentPool(population, archive);
+    const opponentPool = buildOpponentPool(previousElites, archive);
     const rankings = await Promise.all(
       population.map((candidate) => evaluateCandidateAgainstPool(candidate, opponentPool, seedSet)),
     );
@@ -42,18 +61,40 @@ export async function runEvolution(options: EvolutionOptions = {}): Promise<Gene
 
     history.push({ generation, rankings, elites });
     archive.unshift(...elites);
-    archive.splice(12);
+    archive.splice(defaultExperimentConfig.archiveSize);
+    for (const elite of elites) {
+      archiveCandidate(elite);
+    }
+    const summary = buildGenerationSummary(generation, rankings, archive);
+    writeGenerationSummary(runId, summary);
+    writeGenerationTopCandidates(
+      runId,
+      generation,
+      summary.topCandidates
+        .map((entry) => {
+          const candidate = population.find((item) => item.id === entry.candidateId);
+          const ranking = rankings.find((item) => item.candidateId === entry.candidateId);
+          return candidate && ranking ? { candidate, ranking } : null;
+        })
+        .filter((entry): entry is { candidate: Candidate; ranking: TournamentResult } => entry !== null),
+    );
+    updateRunManifest(runId, {
+      bestCandidateIds: history.map((entry) => entry.rankings[0]?.candidateId).filter((entry): entry is string => Boolean(entry)),
+    });
+    logGenerationSummary(summary);
+    previousElites = elites;
 
     population = repopulate(elites, populationSize);
   }
 
+  updateRunManifest(runId, { completedAt: new Date().toISOString() });
+
   return history;
 }
 
-function buildOpponentPool(population: Candidate[], archive: Candidate[]): Candidate[] {
-  const currentElites = [...population].slice(0, Math.min(3, population.length));
+function buildOpponentPool(previousElites: Candidate[], archive: Candidate[]): Candidate[] {
   const archived = archive.slice(0, 3);
-  return [...currentElites, ...archived].filter(uniqueCandidates);
+  return [...previousElites, ...archived].filter(uniqueCandidates);
 }
 
 function repopulate(elites: Candidate[], populationSize: number): Candidate[] {
@@ -82,6 +123,34 @@ function compareTournamentResults(left: TournamentResult, right: TournamentResul
     return right.winRate - left.winRate;
   }
   return right.averageNonDrawMargin - left.averageNonDrawMargin;
+}
+
+function buildGenerationSummary(generation: number, rankings: TournamentResult[], archive: Candidate[]): GenerationSummary {
+  const best = rankings[0];
+  return {
+    generation,
+    bestCandidateId: best?.candidateId ?? null,
+    averageScoreDelta: best?.averageScoreDelta ?? 0,
+    winRate: best?.winRate ?? 0,
+    drawRate: best?.drawRate ?? 0,
+    lossRate: best?.lossRate ?? 0,
+    averageNonDrawMargin: best?.averageNonDrawMargin ?? 0,
+    archiveSnapshot: archive.slice(0, defaultExperimentConfig.archiveSize).map((candidate) => candidate.id),
+    topCandidates: rankings.slice(0, defaultExperimentConfig.generationTopCount).map((result) => ({
+      candidateId: result.candidateId,
+      averageScoreDelta: result.averageScoreDelta,
+      winRate: result.winRate,
+      drawRate: result.drawRate,
+      lossRate: result.lossRate,
+      averageNonDrawMargin: result.averageNonDrawMargin,
+    })),
+  };
+}
+
+function logGenerationSummary(summary: GenerationSummary): void {
+  process.stdout.write(
+    `gen=${summary.generation} best=${summary.bestCandidateId} delta=${summary.averageScoreDelta.toFixed(2)} win=${summary.winRate.toFixed(2)} draw=${summary.drawRate.toFixed(2)} margin=${summary.averageNonDrawMargin.toFixed(2)}\n`,
+  );
 }
 
 function uniqueCandidates(candidate: Candidate, index: number, candidates: Candidate[]): boolean {

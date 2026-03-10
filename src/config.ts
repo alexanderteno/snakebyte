@@ -26,6 +26,30 @@ export interface ExperimentConfig {
   mutationScale: number;
   maxCandidateMovesPerSnakebot: number;
   maxJointActions: number;
+  lookaheadEnabled: boolean;
+  lookaheadTopActions: number;
+  lookaheadDiscount: number;
+  archiveSize: number;
+  generationTopCount: number;
+}
+
+function envNumber(name: string, fallback: number): number {
+  const rawValue = process.env[name];
+  if (!rawValue) {
+    return fallback;
+  }
+
+  const parsed = Number(rawValue);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function envFlag(name: string, fallback: boolean): boolean {
+  const rawValue = process.env[name];
+  if (!rawValue) {
+    return fallback;
+  }
+
+  return rawValue === "1" || rawValue.toLowerCase() === "true";
 }
 
 function defaultSparringCommand(): string {
@@ -44,6 +68,11 @@ export const defaultExperimentConfig: ExperimentConfig = {
   mutationScale: 0.35,
   maxCandidateMovesPerSnakebot: 3,
   maxJointActions: 24,
+  lookaheadEnabled: envFlag("SNAKEBYTE_LOOKAHEAD", false),
+  lookaheadTopActions: envNumber("SNAKEBYTE_LOOKAHEAD_TOP_ACTIONS", 4),
+  lookaheadDiscount: envNumber("SNAKEBYTE_LOOKAHEAD_DISCOUNT", 0.6),
+  archiveSize: envNumber("SNAKEBYTE_ARCHIVE_SIZE", 12),
+  generationTopCount: envNumber("SNAKEBYTE_GENERATION_TOP_COUNT", 5),
   sparringCommand: defaultSparringCommand(),
   weightKeys: [
     "survivalImmediate",

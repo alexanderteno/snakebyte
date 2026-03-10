@@ -3,6 +3,7 @@ import { buildLocalRunnerArgs, buildLocalRunnerCommand } from "./engine/localRun
 import { runEvolution, type EvolutionOptions } from "./ga/evolve.js";
 
 async function main(): Promise<void> {
+  const evolutionOptions = readEvolutionOptions();
   const engineCommand = buildLocalRunnerCommand({
     engineDir: defaultExperimentConfig.engineDir,
     player1Command: "node dist/bot/cli.js",
@@ -12,42 +13,42 @@ async function main(): Promise<void> {
   });
 
   console.log("Evolution harness ready.");
-  console.log(`Population size: ${defaultExperimentConfig.populationSize}`);
+  console.log(`Population size: ${evolutionOptions.populationSize ?? defaultExperimentConfig.populationSize}`);
   console.log(`Engine path: ${defaultExperimentConfig.engineDir}`);
   console.log(`Runner: ${engineCommand.command} ${buildLocalRunnerArgs(engineCommand.options).join(" ")}`);
-  console.log(`Seed set: ${defaultExperimentConfig.seedSet.join(", ")}`);
+  console.log(`Seed set: ${(evolutionOptions.seedSet ?? defaultExperimentConfig.seedSet).join(", ")}`);
 
   if (process.argv.includes("--run-evolution")) {
-    const evolutionOptions: EvolutionOptions = {};
-    const populationSize = parseNumberFlag("--population");
-    const maxGenerations = parseNumberFlag("--generations");
-
-    if (populationSize !== undefined) {
-      evolutionOptions.populationSize = populationSize;
-    }
-    if (maxGenerations !== undefined) {
-      evolutionOptions.maxGenerations = maxGenerations;
-    }
-    if (process.argv.includes("--smoke-seeds")) {
-      evolutionOptions.seedSet = [defaultExperimentConfig.seedSet[0] ?? 1];
-    }
-
     const history = await runEvolution(evolutionOptions);
     const lastGeneration = history.at(-1);
     if (lastGeneration) {
       console.log(`Completed ${history.length} generations.`);
-      console.log(
-        JSON.stringify(
-          {
-            generation: lastGeneration.generation,
-            best: lastGeneration.rankings[0],
-          },
-          null,
-          2,
-        ),
-      );
+      const best = lastGeneration.rankings[0];
+      if (best) {
+        console.log(
+          `Best candidate: id=${best.candidateId} delta=${best.averageScoreDelta.toFixed(2)} win=${best.winRate.toFixed(2)} draw=${best.drawRate.toFixed(2)} loss=${best.lossRate.toFixed(2)} margin=${best.averageNonDrawMargin.toFixed(2)}`,
+        );
+      }
     }
   }
+}
+
+function readEvolutionOptions(): EvolutionOptions {
+  const evolutionOptions: EvolutionOptions = {};
+  const populationSize = parseNumberFlag("--population");
+  const maxGenerations = parseNumberFlag("--generations");
+
+  if (populationSize !== undefined) {
+    evolutionOptions.populationSize = populationSize;
+  }
+  if (maxGenerations !== undefined) {
+    evolutionOptions.maxGenerations = maxGenerations;
+  }
+  if (process.argv.includes("--smoke-seeds")) {
+    evolutionOptions.seedSet = [defaultExperimentConfig.seedSet[0] ?? 1];
+  }
+
+  return evolutionOptions;
 }
 
 function parseNumberFlag(flag: string): number | undefined {

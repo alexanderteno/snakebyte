@@ -17,8 +17,12 @@
     "match:starter": "node --import tsx src/play.ts --starter-bot",
     "match:vs-starter": "node --import tsx src/play.ts --opponent-starter",
     "match:self": "node --import tsx src/play.ts --mirror-bot",
+    "match:debug": "cross-env SNAKEBYTE_DEBUG_CANDIDATES=verbose node --import tsx src/play.ts --opponent-starter",
+    "match:lookahead": "cross-env SNAKEBYTE_LOOKAHEAD=1 node --import tsx src/play.ts --opponent-starter",
+    "parity": "npm run build && node dist/parity.js",
     "ga:run": "node --import tsx src/index.ts --run-evolution",
     "ga:smoke": "node --import tsx src/index.ts --run-evolution --population 4 --generations 1 --smoke-seeds",
+    "ga:train": "node --import tsx src/index.ts --run-evolution --population 8 --generations 3",
     "docker:build": "docker compose build",
     "docker:shell": "docker compose run --rm dev",
     "docker:npm-install": "docker compose run --rm dev npm install",
@@ -28,11 +32,16 @@
     "docker:match:starter": "docker compose run --rm dev npm run match:starter",
     "docker:match:vs-starter": "docker compose run --rm dev npm run match:vs-starter",
     "docker:match:self": "docker compose run --rm dev npm run match:self",
+    "docker:match:debug": "docker compose run --rm dev npm run match:debug",
+    "docker:match:lookahead": "docker compose run --rm dev npm run match:lookahead",
+    "docker:parity": "docker compose run --rm dev npm run parity",
     "docker:ga:run": "docker compose run --rm dev npm run ga:run",
-    "docker:ga:smoke": "docker compose run --rm dev npm run ga:smoke"
+    "docker:ga:smoke": "docker compose run --rm dev npm run ga:smoke",
+    "docker:ga:train": "docker compose run --rm dev npm run ga:train"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "cross-env": "^7.0.3",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0"
   }
