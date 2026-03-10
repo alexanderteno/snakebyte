@@ -8,12 +8,21 @@ export const DEFAULT_WEIGHTS: CandidateWeights = {
   survivalAfterFall: 400,
   applesEaten: 45,
   nearestAppleDistance: -6,
+  pathAppleDistance: -8,
+  gravityAppleDistance: -10,
   appleRaceMargin: 8,
+  appleControl: 3,
   supportStability: 30,
+  supportDelta: 35,
   selfCollisionRisk: -120,
   enemyCollisionRisk: -90,
   outOfBoundsRisk: -200,
+  fallDistance: -25,
   reachableSpace: 4,
+  minReachableSpace: 6,
+  escapePressure: -18,
+  headToHeadPressure: -20,
+  opponentFirstReach: -24,
   bodyCountDelta: 3,
   headExposure: -10,
 };
@@ -27,10 +36,14 @@ export function loadWeights(argv: string[]): CandidateWeights {
   const resolved = path.resolve(process.cwd(), weightsFile);
   const parsed = JSON.parse(fs.readFileSync(resolved, "utf8")) as Partial<CandidateWeights>;
 
+  return normalizeWeights(parsed);
+}
+
+export function normalizeWeights(weights: Partial<CandidateWeights>): CandidateWeights {
   return {
     ...DEFAULT_WEIGHTS,
     ...Object.fromEntries(
-      defaultExperimentConfig.weightKeys.map((key) => [key, parsed[key] ?? DEFAULT_WEIGHTS[key]]),
+      defaultExperimentConfig.weightKeys.map((key) => [key, weights[key] ?? DEFAULT_WEIGHTS[key]]),
     ),
   } as CandidateWeights;
 }

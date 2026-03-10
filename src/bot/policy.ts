@@ -2,6 +2,7 @@ import { defaultExperimentConfig } from "../config.js";
 import type { CandidateWeights } from "../ga/types.js";
 import { buildCandidateJointActions } from "./candidates.js";
 import { formatJointAction } from "./actions.js";
+import { maybeWriteTurnDiagnostics } from "./diagnostics.js";
 import { evaluateJointAction, type EvaluationResult } from "./evaluator.js";
 import type { FrameState, GlobalState } from "./protocol.js";
 import { createRuntimeState } from "./state.js";
@@ -25,13 +26,14 @@ export function chooseCommand(
     .map((jointAction) => evaluateJointAction(runtimeState, jointAction, weights))
     .sort((left, right) => right.score - left.score);
 
-  const scoredEvaluations = defaultExperimentConfig.lookaheadEnabled
+  const scoredEvaluations = shouldApplyLookahead(evaluations)
     ? applyShortLookahead(runtimeState, weights, evaluations)
     : evaluations;
 
   const best = scoredEvaluations.reduce(selectBestEvaluation);
 
   maybeDumpCandidates(scoredEvaluations.slice(0, 5));
+  maybeWriteTurnDiagnostics(runtimeState, scoredEvaluations, best);
 
   return formatJointAction(best.jointAction);
 }
@@ -57,6 +59,23 @@ function maybeDumpCandidates(results: EvaluationResult[]): void {
 
     process.stderr.write(`${result.debug.jointAction} score=${result.score.toFixed(2)} features=${JSON.stringify(result.features)}\n`);
   }
+}
+
+function shouldApplyLookahead(evaluations: EvaluationResult[]): boolean {
+  if (defaultExperimentConfig.lookaheadEnabled) {
+    return true;
+  }
+
+  if (evaluations.length < 2) {
+    return false;
+  }
+
+  const [best, secondBest] = evaluations;
+  if (!best || !secondBest) {
+    return false;
+  }
+
+  return (best.score - secondBest.score) <= defaultExperimentConfig.lookaheadGapThreshold;
 }
 
 function applyShortLookahead(

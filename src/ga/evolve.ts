@@ -1,9 +1,10 @@
 import { defaultExperimentConfig } from "../config.js";
 import type { Candidate, GenerationSummary, RunManifest, TournamentResult } from "./types.js";
-import { evaluateCandidateAgainstPool } from "./evaluate.js";
+import { evaluateCandidateAgainstPool, type EvaluationOpponent } from "./evaluate.js";
 import {
   archiveCandidate,
   createRunManifest,
+  readArchiveCandidates,
   updateRunManifest,
   writeGenerationSummary,
   writeGenerationTopCandidates,
@@ -33,7 +34,7 @@ export async function runEvolution(options: EvolutionOptions = {}): Promise<Gene
     populationSize,
     defaultExperimentConfig.weightKeys,
   );
-  const archive: Candidate[] = [];
+  const archive: Candidate[] = readArchiveCandidates(defaultExperimentConfig.archiveSize);
   let previousElites: Candidate[] = [];
   const history: GenerationResult[] = [];
   createRunManifest({
@@ -92,9 +93,10 @@ export async function runEvolution(options: EvolutionOptions = {}): Promise<Gene
   return history;
 }
 
-function buildOpponentPool(previousElites: Candidate[], archive: Candidate[]): Candidate[] {
-  const archived = archive.slice(0, 3);
-  return [...previousElites, ...archived].filter(uniqueCandidates);
+function buildOpponentPool(previousElites: Candidate[], archive: Candidate[]): EvaluationOpponent[] {
+  const archived = archive.slice(0, Math.min(archive.length, 6)).map((candidate) => ({ candidate, opponentClass: "archive" as const }));
+  const elites = previousElites.map((candidate) => ({ candidate, opponentClass: "elite" as const }));
+  return [...elites, ...archived].filter(uniqueOpponents);
 }
 
 function repopulate(elites: Candidate[], populationSize: number): Candidate[] {
@@ -113,6 +115,9 @@ function repopulate(elites: Candidate[], populationSize: number): Candidate[] {
 }
 
 function compareTournamentResults(left: TournamentResult, right: TournamentResult): number {
+  if (right.fitness !== left.fitness) {
+    return right.fitness - left.fitness;
+  }
   if (right.averageScoreDelta !== left.averageScoreDelta) {
     return right.averageScoreDelta - left.averageScoreDelta;
   }
@@ -130,29 +135,37 @@ function buildGenerationSummary(generation: number, rankings: TournamentResult[]
   return {
     generation,
     bestCandidateId: best?.candidateId ?? null,
+    fitness: best?.fitness ?? 0,
     averageScoreDelta: best?.averageScoreDelta ?? 0,
     winRate: best?.winRate ?? 0,
     drawRate: best?.drawRate ?? 0,
     lossRate: best?.lossRate ?? 0,
     averageNonDrawMargin: best?.averageNonDrawMargin ?? 0,
+    scoreDeltaStdDev: best?.scoreDeltaStdDev ?? 0,
     archiveSnapshot: archive.slice(0, defaultExperimentConfig.archiveSize).map((candidate) => candidate.id),
     topCandidates: rankings.slice(0, defaultExperimentConfig.generationTopCount).map((result) => ({
       candidateId: result.candidateId,
+      fitness: result.fitness,
       averageScoreDelta: result.averageScoreDelta,
       winRate: result.winRate,
       drawRate: result.drawRate,
       lossRate: result.lossRate,
       averageNonDrawMargin: result.averageNonDrawMargin,
+      scoreDeltaStdDev: result.scoreDeltaStdDev,
     })),
   };
 }
 
 function logGenerationSummary(summary: GenerationSummary): void {
   process.stdout.write(
-    `gen=${summary.generation} best=${summary.bestCandidateId} delta=${summary.averageScoreDelta.toFixed(2)} win=${summary.winRate.toFixed(2)} draw=${summary.drawRate.toFixed(2)} margin=${summary.averageNonDrawMargin.toFixed(2)}\n`,
+    `gen=${summary.generation} best=${summary.bestCandidateId} fitness=${summary.fitness.toFixed(2)} delta=${summary.averageScoreDelta.toFixed(2)} win=${summary.winRate.toFixed(2)} draw=${summary.drawRate.toFixed(2)} margin=${summary.averageNonDrawMargin.toFixed(2)} std=${summary.scoreDeltaStdDev.toFixed(2)}\n`,
   );
 }
 
 function uniqueCandidates(candidate: Candidate, index: number, candidates: Candidate[]): boolean {
   return candidates.findIndex((entry) => entry.id === candidate.id) === index;
+}
+
+function uniqueOpponents(entry: EvaluationOpponent, index: number, values: EvaluationOpponent[]): boolean {
+  return values.findIndex((candidateEntry) => candidateEntry.candidate.id === entry.candidate.id) === index;
 }

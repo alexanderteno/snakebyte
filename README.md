@@ -180,6 +180,12 @@ npm.cmd run match:self
 npm.cmd run match:debug
 ```
 
+- Run structured self-play diagnostics and persist artifacts under `.snakebyte/diagnostics/`:
+
+```powershell
+npm.cmd run match:diagnostics -- --candidate-id cbce4c1e-5d26-4f78-b794-3bed60333b6a --opponent-mode mirror --seeds 1 --top-n 3 --turn-limit 40
+```
+
 - Run a heuristic match with one-step lookahead enabled:
 
 ```powershell
@@ -211,6 +217,7 @@ mvn.cmd -f local-runner/pom.xml exec:java -Dexec.args="--player1 node dist/bot/c
 ```
 
 The custom runner exists so your repo can control agents and seeds without editing the upstream submodule.
+The Python boss is only a legacy fallback sparring target for ad hoc local matches. Diagnostics and GA training should prefer mirror or archived heuristic opponents.
 
 ## Container workflow
 
@@ -234,6 +241,7 @@ Available helper scripts:
 - `npm.cmd run docker:match`: launch the TypeScript match entrypoint inside the container
 - `npm.cmd run docker:match:starter`: launch the official starter bot inside the container for a smoke test
 - `npm.cmd run docker:match:debug`: launch a verbose candidate-dump match inside the container
+- `npm.cmd run docker:match:diagnostics -- --candidate-id <id> --opponent-mode mirror`: persist structured self-play diagnostics inside the container
 - `npm.cmd run docker:match:lookahead`: launch a one-step-lookahead match inside the container
 - `npm.cmd run docker:parity`: run local simulator parity checks inside the container
 - `npm.cmd run docker:ga:train`: run a bounded GA training loop and persist run artifacts
@@ -289,7 +297,15 @@ GA and parity tooling writes artifacts under `.snakebyte/`.
 - `.snakebyte/runs/`: per-run manifests, generation summaries, and top-candidate snapshots
 
 Use `SNAKEBYTE_DEBUG_CANDIDATES=1` for compact candidate dumps and `SNAKEBYTE_DEBUG_CANDIDATES=verbose` for full per-feature contributions and simulator events.
+Use `npm.cmd run match:diagnostics -- --candidate-id <id> --opponent-mode mirror|archive|elite` to capture per-turn chosen actions, top alternatives, and match summaries as JSON artifacts.
+Use `npm.cmd run contest:build -- --candidate-id <id>` to bundle a single-file contest submission with embedded weights. If no candidate is provided, the builder uses the latest archived candidate and writes `.snakebyte/submission/latest.js`.
 Use `SNAKEBYTE_LOOKAHEAD=1` to enable the optional one-step lookahead layer.
+Without `SNAKEBYTE_LOOKAHEAD=1`, the bot still applies one-step lookahead as a tiebreaker when the top candidate scores are within `SNAKEBYTE_LOOKAHEAD_GAP_THRESHOLD` (default `0.5`).
+
+## Evaluator Features
+
+`FeatureVector` in [src/bot/evaluator.ts](/c:/Users/alexa/Projects/snakebyte/src/bot/evaluator.ts) is the source of truth for feature semantics.
+When evaluator work changes the meaning of a feature, update those field comments in the same change.
 
 ## ML path
 

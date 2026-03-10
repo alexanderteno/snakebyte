@@ -7,7 +7,7 @@ async function main(): Promise<void> {
   const engineCommand = buildLocalRunnerCommand({
     engineDir: defaultExperimentConfig.engineDir,
     player1Command: "node dist/bot/cli.js",
-    player2Command: defaultExperimentConfig.sparringCommand,
+    player2Command: "node dist/bot/cli.js",
     seed: 1,
     port: 8888,
   });
@@ -15,8 +15,9 @@ async function main(): Promise<void> {
   console.log("Evolution harness ready.");
   console.log(`Population size: ${evolutionOptions.populationSize ?? defaultExperimentConfig.populationSize}`);
   console.log(`Engine path: ${defaultExperimentConfig.engineDir}`);
-  console.log(`Runner: ${engineCommand.command} ${buildLocalRunnerArgs(engineCommand.options).join(" ")}`);
+  console.log(`Sample self-play runner: ${engineCommand.command} ${buildLocalRunnerArgs(engineCommand.options).join(" ")}`);
   console.log(`Seed set: ${(evolutionOptions.seedSet ?? defaultExperimentConfig.seedSet).join(", ")}`);
+  console.log("Evaluation pool: mirror self-play plus archived and prior-elite heuristic candidates.");
 
   if (process.argv.includes("--run-evolution")) {
     const history = await runEvolution(evolutionOptions);
@@ -26,7 +27,7 @@ async function main(): Promise<void> {
       const best = lastGeneration.rankings[0];
       if (best) {
         console.log(
-          `Best candidate: id=${best.candidateId} delta=${best.averageScoreDelta.toFixed(2)} win=${best.winRate.toFixed(2)} draw=${best.drawRate.toFixed(2)} loss=${best.lossRate.toFixed(2)} margin=${best.averageNonDrawMargin.toFixed(2)}`,
+          `Best candidate: id=${best.candidateId} fitness=${best.fitness.toFixed(2)} delta=${best.averageScoreDelta.toFixed(2)} win=${best.winRate.toFixed(2)} draw=${best.drawRate.toFixed(2)} loss=${best.lossRate.toFixed(2)} margin=${best.averageNonDrawMargin.toFixed(2)} std=${best.scoreDeltaStdDev.toFixed(2)}`,
         );
       }
     }

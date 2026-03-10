@@ -14,6 +14,7 @@ async function readLine(iterator: AsyncIterator<string>): Promise<string> {
 }
 
 async function main(): Promise<void> {
+  configureDiagnosticsFromArgs(process.argv);
   const weights = loadWeights(process.argv);
   const reader = readline.createInterface({
     input: process.stdin,
@@ -60,6 +61,31 @@ async function main(): Promise<void> {
   } finally {
     reader.close();
   }
+}
+
+function configureDiagnosticsFromArgs(argv: string[]): void {
+  const diagnosticsFile = getFlagValue(argv, "--diagnostics-file");
+  const diagnosticsTopN = getFlagValue(argv, "--diagnostics-top-n");
+  const diagnosticsTurnLimit = getFlagValue(argv, "--diagnostics-turn-limit");
+
+  if (diagnosticsFile) {
+    process.env.SNAKEBYTE_DIAGNOSTICS_FILE = diagnosticsFile;
+  }
+  if (diagnosticsTopN) {
+    process.env.SNAKEBYTE_DIAGNOSTICS_TOP_N = diagnosticsTopN;
+  }
+  if (diagnosticsTurnLimit) {
+    process.env.SNAKEBYTE_DIAGNOSTICS_TURN_LIMIT = diagnosticsTurnLimit;
+  }
+}
+
+function getFlagValue(argv: string[], flag: string): string | undefined {
+  const index = argv.indexOf(flag);
+  if (index === -1) {
+    return undefined;
+  }
+
+  return argv[index + 1];
 }
 
 void main().catch((error: unknown) => {

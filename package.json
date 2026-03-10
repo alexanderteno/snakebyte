@@ -18,7 +18,9 @@
     "match:vs-starter": "node --import tsx src/play.ts --opponent-starter",
     "match:self": "node --import tsx src/play.ts --mirror-bot",
     "match:debug": "cross-env SNAKEBYTE_DEBUG_CANDIDATES=verbose node --import tsx src/play.ts --opponent-starter",
+    "match:diagnostics": "node --import tsx src/diagnostics.ts",
     "match:lookahead": "cross-env SNAKEBYTE_LOOKAHEAD=1 node --import tsx src/play.ts --opponent-starter",
+    "contest:build": "npm run build && node scripts/build-contest.mjs",
     "parity": "npm run build && node dist/parity.js",
     "ga:run": "node --import tsx src/index.ts --run-evolution",
     "ga:smoke": "node --import tsx src/index.ts --run-evolution --population 4 --generations 1 --smoke-seeds",
@@ -33,6 +35,7 @@
     "docker:match:vs-starter": "docker compose run --rm dev npm run match:vs-starter",
     "docker:match:self": "docker compose run --rm dev npm run match:self",
     "docker:match:debug": "docker compose run --rm dev npm run match:debug",
+    "docker:match:diagnostics": "docker compose run --rm dev npm run match:diagnostics --",
     "docker:match:lookahead": "docker compose run --rm dev npm run match:lookahead",
     "docker:parity": "docker compose run --rm dev npm run parity",
     "docker:ga:run": "docker compose run --rm dev npm run ga:run",
@@ -42,6 +45,7 @@
   "devDependencies": {
     "@types/node": "^24.0.0",
     "cross-env": "^7.0.3",
+    "esbuild": "^0.25.10",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0"
   }

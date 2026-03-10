@@ -5,12 +5,21 @@ export type WeightKey =
   | "survivalAfterFall"
   | "applesEaten"
   | "nearestAppleDistance"
+  | "pathAppleDistance"
+  | "gravityAppleDistance"
   | "appleRaceMargin"
+  | "appleControl"
   | "supportStability"
+  | "supportDelta"
   | "selfCollisionRisk"
   | "enemyCollisionRisk"
   | "outOfBoundsRisk"
+  | "fallDistance"
   | "reachableSpace"
+  | "minReachableSpace"
+  | "escapePressure"
+  | "headToHeadPressure"
+  | "opponentFirstReach"
   | "bodyCountDelta"
   | "headExposure";
 
@@ -29,6 +38,7 @@ export interface ExperimentConfig {
   lookaheadEnabled: boolean;
   lookaheadTopActions: number;
   lookaheadDiscount: number;
+  lookaheadGapThreshold: number;
   archiveSize: number;
   generationTopCount: number;
 }
@@ -71,6 +81,7 @@ export const defaultExperimentConfig: ExperimentConfig = {
   lookaheadEnabled: envFlag("SNAKEBYTE_LOOKAHEAD", false),
   lookaheadTopActions: envNumber("SNAKEBYTE_LOOKAHEAD_TOP_ACTIONS", 4),
   lookaheadDiscount: envNumber("SNAKEBYTE_LOOKAHEAD_DISCOUNT", 0.6),
+  lookaheadGapThreshold: envNumber("SNAKEBYTE_LOOKAHEAD_GAP_THRESHOLD", 0.5),
   archiveSize: envNumber("SNAKEBYTE_ARCHIVE_SIZE", 12),
   generationTopCount: envNumber("SNAKEBYTE_GENERATION_TOP_COUNT", 5),
   sparringCommand: defaultSparringCommand(),
@@ -79,12 +90,21 @@ export const defaultExperimentConfig: ExperimentConfig = {
     "survivalAfterFall",
     "applesEaten",
     "nearestAppleDistance",
+    "pathAppleDistance",
+    "gravityAppleDistance",
     "appleRaceMargin",
+    "appleControl",
     "supportStability",
+    "supportDelta",
     "selfCollisionRisk",
     "enemyCollisionRisk",
     "outOfBoundsRisk",
+    "fallDistance",
     "reachableSpace",
+    "minReachableSpace",
+    "escapePressure",
+    "headToHeadPressure",
+    "opponentFirstReach",
     "bodyCountDelta",
     "headExposure",
   ],
