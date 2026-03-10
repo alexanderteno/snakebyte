@@ -6,6 +6,7 @@ export interface LocalRunnerOptions {
   player2Command: string;
   seed?: number;
   port?: number;
+  simulate?: boolean;
 }
 
 export interface ShellCommand {
@@ -17,6 +18,7 @@ export interface ShellCommand {
 
 export function buildLocalRunnerArgs(options: LocalRunnerOptions): string[] {
   const args = [
+    "-q",
     "-f",
     path.resolve(process.cwd(), "local-runner", "pom.xml"),
     "compile",
@@ -30,6 +32,10 @@ export function buildLocalRunnerArgs(options: LocalRunnerOptions): string[] {
 
   if (options.port !== undefined) {
     args[args.length - 1] += ` --port ${options.port}`;
+  }
+
+  if (options.simulate !== false) {
+    args[args.length - 1] += " --simulate";
   }
 
   return args;

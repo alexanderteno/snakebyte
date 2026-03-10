@@ -111,6 +111,8 @@ Available helper scripts:
 - `npm.cmd run docker:match`: launch the TypeScript match entrypoint inside the container
 - `npm.cmd run docker:match:starter`: launch the official starter bot inside the container for a smoke test
 
+The automated match entrypoints now run the engine in non-interactive simulation mode and print a machine-readable JSON summary with scores, winner, fail cause, and referee summaries.
+
 Equivalent raw commands if you prefer Docker directly:
 
 Build the image once:

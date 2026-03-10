@@ -17,7 +17,14 @@ async function main(): Promise<void> {
     player2Command: defaultExperimentConfig.sparringCommand,
     seed: 1,
     port: 8888,
+    simulate: true,
   });
+
+  if (result.summary) {
+    process.stdout.write(`${JSON.stringify(result.summary, null, 2)}\n`);
+  } else {
+    process.stderr.write("Match completed without a parsed summary.\n");
+  }
 
   if (result.exitCode !== 0) {
     process.exitCode = result.exitCode ?? 1;
