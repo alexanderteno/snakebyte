@@ -3,7 +3,7 @@ import type { WeightKey } from "../config.js";
 import type { Candidate, CandidateWeights } from "./types.js";
 
 function randomWeight(): number {
-  return (Math.random() * 2) - 1;
+  return (Math.random() * 10) - 5;
 }
 
 function createWeights(keys: WeightKey[]): CandidateWeights {
@@ -16,4 +16,3 @@ export function createRandomPopulation(size: number, keys: WeightKey[]): Candida
     weights: createWeights(keys),
   }));
 }
-

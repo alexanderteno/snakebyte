@@ -5,3 +5,4 @@ coverage/
 Thumbs.db
 *.log
 local-runner/target/
+.snakebyte/

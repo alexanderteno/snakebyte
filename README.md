@@ -10,6 +10,93 @@ Local workspace for experimenting with CodinGame Winter Challenge 2026 bots.
 - `src/ga/`: evolutionary tuning logic.
 - `src/index.ts`: local entrypoint for experiments.
 
+## Game Rules
+
+This project targets the CodinGame Winter Challenge 2026 snakebot game.
+
+### Objective
+
+- Collect power sources to grow your snakebots.
+- Win by finishing the game with more total body parts than the opponent.
+
+### Map
+
+- The game is played on a side-view grid.
+- `#` is a platform and blocks movement.
+- `.` is an empty cell.
+- Power sources, platforms, and snakebot bodies can support falling snakebots.
+
+### Snakebots
+
+- A snakebot is an ordered list of adjacent cells.
+- The first cell is the head.
+- Snakebots are affected by gravity.
+- If no body part is supported by something solid, the snakebot falls.
+
+### Movement
+
+- Every snakebot keeps moving in its current facing direction unless told to turn.
+- Initial facing direction is `UP`.
+- On each turn, all snakebots move simultaneously.
+- Legal movement commands are `UP`, `DOWN`, `LEFT`, and `RIGHT`.
+- A snakebot cannot reverse into its own neck because the engine rejects backwards turns.
+
+### Collisions and Growth
+
+- If a head enters a platform or body part, the head is removed.
+- If at least three body parts remain, the next body part becomes the new head.
+- Otherwise the entire snakebot dies.
+- If a head enters a power source, the snakebot eats it and grows by one segment.
+- That power-source cell stops being solid after being eaten.
+- If multiple heads enter the same power-source cell simultaneously, each snakebot gets the growth.
+- After movement resolves, snakebots fall until supported.
+- Falling out of the map removes the snakebot.
+
+### Turn Actions
+
+- Output exactly one line per turn.
+- Actions are separated by `;`.
+- Available actions:
+  - `<id> UP`
+  - `<id> DOWN`
+  - `<id> LEFT`
+  - `<id> RIGHT`
+  - `MARK x y`
+  - `WAIT`
+- Up to 4 `MARK` actions may be used per turn.
+- Movement commands may include trailing debug text.
+
+### Game End
+
+The game ends when one of these happens:
+
+- one player has no snakebots left
+- there are no power sources left
+- 200 turns have elapsed
+
+### Input Model
+
+Initialization provides:
+
+- your player id
+- grid width and height
+- the static map
+- your snakebot ids
+- opponent snakebot ids
+
+Each turn provides:
+
+- remaining power source coordinates
+- all live snakebots
+- each snakebot body as `x,y:x,y:...` with the head first
+
+### Practical Implications For Bots
+
+- Survival matters more than short-term growth if a path creates head-loss or falling risk.
+- Support and gravity are core mechanics, not edge cases.
+- Simultaneous resolution means head-to-head races for power sources can be valuable.
+- The evaluation function should consider both immediate movement and post-move falling.
+
 ## Recommended workflow
 
 1. Keep this repository as your working repo.
@@ -73,6 +160,18 @@ npm.cmd run match:ts
 
 ```powershell
 npm.cmd run match:starter
+```
+
+- Run the heuristic bot against the official starter bot:
+
+```powershell
+npm.cmd run match:vs-starter
+```
+
+- Run a heuristic mirror match:
+
+```powershell
+npm.cmd run match:self
 ```
 
 - Install the engine artifact into your local Maven cache:

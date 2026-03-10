@@ -23,7 +23,7 @@ export interface FrameState {
   birds: BirdState[];
 }
 
-function parseCoord(token: string): Coord {
+function parseBodyCoord(token: string): Coord {
   const [xToken, yToken] = token.split(",");
   const x = Number(xToken);
   const y = Number(yToken);
@@ -35,9 +35,21 @@ function parseCoord(token: string): Coord {
   return { x, y };
 }
 
+function parseAppleCoord(token: string): Coord {
+  const [xToken, yToken] = token.split(" ");
+  const x = Number(xToken);
+  const y = Number(yToken);
+
+  if (Number.isNaN(x) || Number.isNaN(y)) {
+    throw new Error(`Invalid apple coordinate token: ${token}`);
+  }
+
+  return { x, y };
+}
+
 function parseBird(token: string): BirdState {
   const [idToken, bodyToken = ""] = token.split(" ");
-  const body = bodyToken.split(":").filter(Boolean).map(parseCoord);
+  const body = bodyToken.split(":").filter(Boolean).map(parseBodyCoord);
 
   return {
     id: Number(idToken),
@@ -71,7 +83,7 @@ export function parseGlobalState(lines: string[]): GlobalState {
 export function parseFrameState(lines: string[]): FrameState {
   let index = 0;
   const appleCount = Number(lines[index++]);
-  const apples = lines.slice(index, index + appleCount).map(parseCoord);
+  const apples = lines.slice(index, index + appleCount).map(parseAppleCoord);
   index += appleCount;
   const birdCount = Number(lines[index++]);
   const birds = lines.slice(index, index + birdCount).map(parseBird);

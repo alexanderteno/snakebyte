@@ -1,6 +1,7 @@
 import readline from "node:readline";
 import { chooseCommand } from "./policy.js";
 import { parseFrameState, parseGlobalState } from "./protocol.js";
+import { loadWeights } from "./weights.js";
 
 async function readLine(iterator: AsyncIterator<string>): Promise<string> {
   const next = await iterator.next();
@@ -13,6 +14,7 @@ async function readLine(iterator: AsyncIterator<string>): Promise<string> {
 }
 
 async function main(): Promise<void> {
+  const weights = loadWeights(process.argv);
   const reader = readline.createInterface({
     input: process.stdin,
     terminal: false,
@@ -52,7 +54,7 @@ async function main(): Promise<void> {
         ...(await Promise.all(birds)),
       ]);
 
-      const command = chooseCommand(globalState, frameState);
+      const command = chooseCommand(globalState, frameState, weights);
       process.stdout.write(`${command}\n`);
     }
   } finally {
