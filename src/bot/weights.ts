@@ -1,12 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { defaultExperimentConfig } from "../config.js";
+import { constrainWeights } from "../ga/constraints.js";
 import type { CandidateWeights } from "../ga/types.js";
 
 export const DEFAULT_WEIGHTS: CandidateWeights = {
   survivalImmediate: 500,
   survivalAfterFall: 400,
   applesEaten: 45,
+  adjacentAppleStall: -18,
   nearestAppleDistance: -6,
   pathAppleDistance: -8,
   gravityAppleDistance: -10,
@@ -23,6 +25,7 @@ export const DEFAULT_WEIGHTS: CandidateWeights = {
   escapePressure: -18,
   headToHeadPressure: -20,
   opponentFirstReach: -24,
+  friendlyHeadPressure: -18,
   bodyCountDelta: 3,
   headExposure: -10,
 };
@@ -40,12 +43,12 @@ export function loadWeights(argv: string[]): CandidateWeights {
 }
 
 export function normalizeWeights(weights: Partial<CandidateWeights>): CandidateWeights {
-  return {
+  return constrainWeights({
     ...DEFAULT_WEIGHTS,
     ...Object.fromEntries(
       defaultExperimentConfig.weightKeys.map((key) => [key, weights[key] ?? DEFAULT_WEIGHTS[key]]),
     ),
-  } as CandidateWeights;
+  } as CandidateWeights);
 }
 
 function getFlagValue(argv: string[], flag: string): string | undefined {

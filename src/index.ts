@@ -17,6 +17,8 @@ async function main(): Promise<void> {
   console.log(`Engine path: ${defaultExperimentConfig.engineDir}`);
   console.log(`Sample self-play runner: ${engineCommand.command} ${buildLocalRunnerArgs(engineCommand.options).join(" ")}`);
   console.log(`Seed set: ${(evolutionOptions.seedSet ?? defaultExperimentConfig.seedSet).join(", ")}`);
+  console.log(`Timeout screener seeds: ${defaultExperimentConfig.timeoutSeedSet.join(", ")}`);
+  console.log(`Passive screener seeds: ${defaultExperimentConfig.passiveSeedSet.join(", ")}`);
   console.log("Evaluation pool: mirror self-play plus archived and prior-elite heuristic candidates.");
 
   if (process.argv.includes("--run-evolution")) {

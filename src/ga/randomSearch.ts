@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { WeightKey } from "../config.js";
+import { constrainWeights } from "./constraints.js";
 import type { Candidate, CandidateWeights } from "./types.js";
 
 function randomWeight(): number {
@@ -7,7 +8,7 @@ function randomWeight(): number {
 }
 
 function createWeights(keys: WeightKey[]): CandidateWeights {
-  return Object.fromEntries(keys.map((key) => [key, randomWeight()])) as CandidateWeights;
+  return constrainWeights(Object.fromEntries(keys.map((key) => [key, randomWeight()])) as CandidateWeights);
 }
 
 export function createRandomPopulation(size: number, keys: WeightKey[]): Candidate[] {

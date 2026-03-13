@@ -41,6 +41,8 @@ export async function runEvolution(options: EvolutionOptions = {}): Promise<Gene
     runId,
     startedAt: new Date().toISOString(),
     seedSet,
+    timeoutSeedSet: defaultExperimentConfig.timeoutSeedSet,
+    passiveSeedSet: defaultExperimentConfig.passiveSeedSet,
     populationSize,
     eliteCount: defaultExperimentConfig.eliteCount,
     maxGenerations,

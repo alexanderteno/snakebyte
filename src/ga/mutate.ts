@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { defaultExperimentConfig } from "../config.js";
+import { constrainWeights } from "./constraints.js";
 import type { Candidate, CandidateWeights } from "./types.js";
 
 export function mutateCandidate(parent: Candidate, scale = defaultExperimentConfig.mutationScale): Candidate {
@@ -12,7 +13,7 @@ export function mutateCandidate(parent: Candidate, scale = defaultExperimentConf
 
   return {
     id: randomUUID(),
-    weights,
+    weights: constrainWeights(weights),
   };
 }
 

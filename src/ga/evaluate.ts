@@ -2,6 +2,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { defaultExperimentConfig } from "../config.js";
 import { runMatch, type MatchSummary } from "../engine/runMatch.js";
+import { directionalPenalty } from "./constraints.js";
 import type { AggregatedMatchMetrics, Candidate, OpponentClass, TournamentMatchResult, TournamentResult } from "./types.js";
 import { writeCandidateWeights } from "./io.js";
 
@@ -14,6 +15,7 @@ export async function evaluateCandidateAgainstPool(
   candidate: Candidate,
   opponents: EvaluationOpponent[],
   seeds = defaultExperimentConfig.seedSet,
+  passiveSeeds = defaultExperimentConfig.passiveSeedSet,
 ): Promise<TournamentResult> {
   const matches: TournamentMatchResult[] = [];
   const evaluationOpponents = [{ candidate, opponentClass: "mirror" as const }, ...opponents].filter((entry, index, values) =>
@@ -29,14 +31,19 @@ export async function evaluateCandidateAgainstPool(
     }
   }
 
+  for (const seed of passiveSeeds) {
+    matches.push(await runPassiveMatch(candidate, seed));
+  }
+
   const wins = matches.filter((match) => match.win).length;
   const draws = matches.filter((match) => match.draw).length;
   const nonDrawMargins = matches.filter((match) => !match.draw).map((match) => match.scoreDelta);
+  const passiveMatches = matches.filter((match) => match.opponentClass === "passive");
 
   return {
     candidateId: candidate.id,
     matches,
-    fitness: computeFitness(matches),
+    fitness: computeFitness(matches, candidate, passiveMatches),
     averageScoreDelta: average(matches.map((match) => match.scoreDelta)),
     winRate: wins / Math.max(matches.length, 1),
     drawRate: draws / Math.max(matches.length, 1),
@@ -86,6 +93,35 @@ async function runHeadlessMatch(
   );
 }
 
+async function runPassiveMatch(candidate: Candidate, seed: number): Promise<TournamentMatchResult> {
+  const candidateFile = path.relative(process.cwd(), writeCandidateWeights(candidate));
+  const candidateCommand = `${heuristicBotCommand()} --weights-file ${normalizeCommandPath(candidateFile)}`;
+  const opponentCommand = passiveBotCommand();
+  const maxAttempts = 2;
+  let lastResult: Awaited<ReturnType<typeof runMatch>> | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const result = await runMatch({
+      engineDir: defaultExperimentConfig.engineDir,
+      player1Command: candidateCommand,
+      player2Command: opponentCommand,
+      seed,
+      simulate: true,
+    }, { quiet: true });
+    lastResult = result;
+
+    if (result.summary) {
+      return toTournamentResult(candidate.id, "passive-wait", "passive", seed, 0, result.summary);
+    }
+  }
+
+  const stderrPreview = lastResult?.stderr.trim().split(/\r?\n/).slice(-10).join(" | ") ?? "NO_STDERR";
+  const stdoutPreview = lastResult?.stdout.trim().split(/\r?\n/).slice(-10).join(" | ") ?? "NO_STDOUT";
+  throw new Error(
+    `Missing passive match summary for candidate ${candidate.id} on seed ${seed}. stdout=${stdoutPreview} stderr=${stderrPreview}`,
+  );
+}
+
 function toTournamentResult(
   candidateId: string,
   opponentId: string,
@@ -128,18 +164,36 @@ function standardDeviation(values: number[]): number {
   return Math.sqrt(variance);
 }
 
-function computeFitness(matches: TournamentMatchResult[]): number {
+function computeFitness(
+  matches: TournamentMatchResult[],
+  candidate: Candidate,
+  passiveMatches: TournamentMatchResult[],
+): number {
   const averageScoreDelta = average(matches.map((match) => match.scoreDelta));
   const winRate = matches.filter((match) => match.win).length / Math.max(matches.length, 1);
   const drawRate = matches.filter((match) => match.draw).length / Math.max(matches.length, 1);
   const averageNonDrawMargin = average(matches.filter((match) => !match.draw).map((match) => match.scoreDelta));
   const stdDev = standardDeviation(matches.map((match) => match.scoreDelta));
+  const passiveAverageScoreDelta = average(passiveMatches.map((match) => match.scoreDelta));
+  const passiveWinRate = passiveMatches.filter((match) => match.win).length / Math.max(passiveMatches.length, 1);
+  const passiveDrawRate = passiveMatches.filter((match) => match.draw).length / Math.max(passiveMatches.length, 1);
+  const passiveLossRate = passiveMatches.filter((match) => !match.win && !match.draw).length / Math.max(passiveMatches.length, 1);
+  const passiveAverageOwnScore = average(passiveMatches.map((match) => match.summary.player1Score));
+  const passiveProgressPenalty = average(passiveMatches.map((match) => Math.max(0, 12 - match.summary.player1Score)));
+  const signPenalty = directionalPenalty(candidate.weights);
 
   return averageScoreDelta
     + (winRate * 2)
     + (averageNonDrawMargin * 0.2)
+    + (passiveAverageScoreDelta * 0.75)
+    + (passiveWinRate * 3)
+    + (passiveAverageOwnScore * 0.1)
     - (drawRate * 1.5)
-    - (stdDev * 0.15);
+    - (passiveDrawRate * 2)
+    - (passiveLossRate * 3)
+    - (passiveProgressPenalty * 0.75)
+    - (stdDev * 0.15)
+    - (signPenalty * 0.5);
 }
 
 function aggregateByOpponentClass(matches: TournamentMatchResult[]): Array<AggregatedMatchMetrics & { opponentClass: OpponentClass }> {
@@ -192,6 +246,11 @@ function heuristicBotCommand(): string {
   }
 
   return "node --import tsx src/bot/cli.ts";
+}
+
+function passiveBotCommand(): string {
+  const builtWaitBot = path.resolve(process.cwd(), "scripts", "wait-bot.mjs");
+  return `node ${normalizeCommandPath(path.relative(process.cwd(), builtWaitBot))}`;
 }
 
 function normalizeCommandPath(value: string): string {

@@ -303,6 +303,34 @@ const scenarios: ParityScenario[] = [
       events: [{ snakebotId: 1, kind: "move" }, { snakebotId: 2, kind: "move" }],
     },
   },
+  {
+    name: "airborne snakebots only support each other after one becomes grounded",
+    state: createRuntimeStateFixture({
+      width: 5,
+      height: 6,
+      rows: [".....", ".....", ".....", ".....", "#####", "#####"],
+      apples: [],
+      mySnakebots: [{ id: 1, body: [{ x: 1, y: 0 }, { x: 1, y: 1 }], facing: "UP" }],
+      opponentSnakebots: [{ id: 2, body: [{ x: 2, y: 2 }, { x: 2, y: 3 }], facing: "UP" }],
+    }),
+    jointAction: {
+      actions: [
+        { snakebotId: 1, direction: "RIGHT" },
+        { snakebotId: 2, direction: "UP" },
+      ],
+    },
+    expected: {
+      mySnakebots: [{ id: 1, body: [{ x: 2, y: 1 }, { x: 1, y: 1 }] }],
+      opponentSnakebots: [{ id: 2, body: [{ x: 2, y: 2 }, { x: 2, y: 3 }] }],
+      apples: [],
+      events: [
+        { snakebotId: 1, kind: "move" },
+        { snakebotId: 2, kind: "move" },
+        { snakebotId: 1, kind: "fall" },
+        { snakebotId: 2, kind: "fall" },
+      ],
+    },
+  },
 ];
 
 function normalizeSnakebots(entries: ExpectedSnakebot[]): Array<{ id: number; body: string[] }> {

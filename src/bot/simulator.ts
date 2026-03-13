@@ -43,11 +43,13 @@ export interface ResolvedTurn {
 export function simulateTurn(state: RuntimeState, jointAction: JointAction): ResolvedTurn {
   const events: TurnEvent[] = [];
   const apples = [...state.apples];
+  const appleKeys = new Set(apples.map(coordKey));
+  const appleByKey = new Map(apples.map((apple) => [coordKey(apple), apple]));
   const snakebots = [...state.mySnakebots, ...state.opponentSnakebots].map(cloneSnakebot);
   const chosenDirections = new Map(jointAction.actions.map((action) => [action.snakebotId, action.direction]));
 
-  doMoves(snakebots, apples, chosenDirections, events);
-  const applesConsumed = doEats(snakebots, apples, events);
+  doMoves(snakebots, appleKeys, chosenDirections, events);
+  const applesConsumed = doEats(snakebots, apples, appleKeys, appleByKey, events);
   doBeheadings(snakebots, state.global.rows, events);
   const aliveAfterBeheadingIds = new Set(snakebots.filter((snakebot) => snakebot.alive).map((snakebot) => snakebot.id));
   const removedSnakebotIds = doFalls(snakebots, apples, state.global.rows, state.height, events);
@@ -88,7 +90,7 @@ function buildSimulatedState(
 
 function doMoves(
   snakebots: SimulatedSnakebot[],
-  apples: Coord[],
+  appleKeys: Set<string>,
   chosenDirections: Map<number, Direction>,
   events: TurnEvent[],
 ): void {
@@ -101,7 +103,7 @@ function doMoves(
     snakebot.facing = direction;
 
     const newHead = moveCoord(snakebot.head, direction);
-    const willEatApple = apples.some((apple) => coordsEqual(apple, newHead));
+    const willEatApple = appleKeys.has(coordKey(newHead));
 
     if (!willEatApple) {
       snakebot.body.pop();
@@ -113,7 +115,13 @@ function doMoves(
   }
 }
 
-function doEats(snakebots: SimulatedSnakebot[], apples: Coord[], events: TurnEvent[]): Coord[] {
+function doEats(
+  snakebots: SimulatedSnakebot[],
+  apples: Coord[],
+  appleKeys: Set<string>,
+  appleByKey: Map<string, Coord>,
+  events: TurnEvent[],
+): Coord[] {
   const applesConsumed: Coord[] = [];
   const consumedKeys = new Set<string>();
 
@@ -123,7 +131,7 @@ function doEats(snakebots: SimulatedSnakebot[], apples: Coord[], events: TurnEve
     }
 
     const key = coordKey(snakebot.head);
-    const eatenApple = apples.find((apple) => coordKey(apple) === key);
+    const eatenApple = appleByKey.get(key);
     if (!eatenApple) {
       continue;
     }
@@ -135,11 +143,22 @@ function doEats(snakebots: SimulatedSnakebot[], apples: Coord[], events: TurnEve
     }
   }
 
-  for (const apple of applesConsumed) {
-    const index = apples.findIndex((entry) => coordsEqual(entry, apple));
-    if (index !== -1) {
-      apples.splice(index, 1);
+  if (consumedKeys.size > 0) {
+    let writeIndex = 0;
+    for (let readIndex = 0; readIndex < apples.length; readIndex += 1) {
+      const apple = apples[readIndex];
+      if (!apple) {
+        continue;
+      }
+      if (consumedKeys.has(coordKey(apple))) {
+        appleKeys.delete(coordKey(apple));
+        appleByKey.delete(coordKey(apple));
+        continue;
+      }
+      apples[writeIndex] = apple;
+      writeIndex += 1;
     }
+    apples.length = writeIndex;
   }
 
   return applesConsumed;
@@ -189,48 +208,43 @@ function doFalls(
   let somethingFell = true;
   const fallDistances = new Map<number, number>();
   const removed = new Set<number>();
+  const airborneSnakebots = new Set(snakebots.filter((entry) => entry.alive));
+  const groundedSnakebots = new Set<SimulatedSnakebot>();
+  const groundedBodyKeys = new Set<string>();
 
   while (somethingFell) {
     somethingFell = false;
+    let somethingGotGrounded = true;
+    while (somethingGotGrounded) {
+      somethingGotGrounded = false;
 
-    let innerFell = true;
-    while (innerFell) {
-      innerFell = false;
-
-      for (const snakebot of snakebots.filter((entry) => entry.alive)) {
-        const canFall = snakebot.body.every((coord) => !somethingSolidUnder(coord, snakebot.body, snakebots, apples, rows));
-        if (!canFall) {
+      for (const snakebot of [...airborneSnakebots]) {
+        const grounded = snakebot.body.some((coord) => isGrounded(coord, apples, rows, groundedSnakebots, groundedBodyKeys));
+        if (!grounded) {
           continue;
         }
 
-        innerFell = true;
-        somethingFell = true;
-        dropSnakebot(snakebot);
-        fallDistances.set(snakebot.id, (fallDistances.get(snakebot.id) ?? 0) + 1);
-
-        if (snakebot.body.every((coord) => coord.y >= height + 1)) {
-          snakebot.alive = false;
-          removed.add(snakebot.id);
+        groundedSnakebots.add(snakebot);
+        for (const coord of snakebot.body) {
+          groundedBodyKeys.add(coordKey(coord));
         }
+        somethingGotGrounded = true;
+      }
+
+      for (const snakebot of groundedSnakebots) {
+        airborneSnakebots.delete(snakebot);
       }
     }
 
-    const intercoiledGroups = getIntercoiledGroups(snakebots.filter((entry) => entry.alive));
-    for (const group of intercoiledGroups) {
-      const metaBody = group.flatMap((snakebot) => snakebot.body);
-      const canFall = metaBody.every((coord) => !somethingSolidUnder(coord, metaBody, snakebots, apples, rows));
-      if (!canFall) {
-        continue;
-      }
-
+    for (const snakebot of [...airborneSnakebots]) {
       somethingFell = true;
-      for (const snakebot of group) {
-        dropSnakebot(snakebot);
-        fallDistances.set(snakebot.id, (fallDistances.get(snakebot.id) ?? 0) + 1);
-        if (snakebot.head.y >= height) {
-          snakebot.alive = false;
-          removed.add(snakebot.id);
-        }
+      dropSnakebot(snakebot);
+      fallDistances.set(snakebot.id, (fallDistances.get(snakebot.id) ?? 0) + 1);
+
+      if (snakebot.body.every((coord) => coord.y >= height + 1)) {
+        snakebot.alive = false;
+        removed.add(snakebot.id);
+        airborneSnakebots.delete(snakebot);
       }
     }
   }
@@ -252,68 +266,29 @@ function doFalls(
   return [...removed];
 }
 
-function somethingSolidUnder(
+function hasTileOrAppleUnder(
   coord: Coord,
-  ignoreBody: Coord[],
-  snakebots: SimulatedSnakebot[],
   apples: Coord[],
   rows: string[],
 ): boolean {
   const below = { x: coord.x, y: coord.y + 1 };
-  if (ignoreBody.some((entry) => coordsEqual(entry, below))) {
-    return false;
-  }
   if (getTileType(rows, below) === "#") {
-    return true;
-  }
-  if (snakebots.some((snakebot) => snakebot.alive && snakebot.body.some((entry) => coordsEqual(entry, below)))) {
     return true;
   }
   return apples.some((apple) => coordsEqual(apple, below));
 }
 
-function getIntercoiledGroups(snakebots: SimulatedSnakebot[]): SimulatedSnakebot[][] {
-  const groups: SimulatedSnakebot[][] = [];
-  const visited = new Set<number>();
-
-  for (const snakebot of snakebots) {
-    if (visited.has(snakebot.id)) {
-      continue;
-    }
-
-    const group: SimulatedSnakebot[] = [];
-    const stack = [snakebot];
-
-    while (stack.length > 0) {
-      const current = stack.pop();
-      if (!current || visited.has(current.id)) {
-        continue;
-      }
-
-      visited.add(current.id);
-      group.push(current);
-      for (const other of snakebots) {
-        if (other.id === current.id || visited.has(other.id)) {
-          continue;
-        }
-        if (snakebotsTouch(current, other)) {
-          stack.push(other);
-        }
-      }
-    }
-
-    if (group.length > 1) {
-      groups.push(group);
-    }
-  }
-
-  return groups;
-}
-
-function snakebotsTouch(left: SimulatedSnakebot, right: SimulatedSnakebot): boolean {
-  return left.body.some((leftCoord) =>
-    right.body.some((rightCoord) => manhattanDistance(leftCoord, rightCoord) === 1),
-  );
+function isGrounded(
+  coord: Coord,
+  apples: Coord[],
+  rows: string[],
+  groundedSnakebots: Set<SimulatedSnakebot>,
+  groundedBodyKeys?: Set<string>,
+): boolean {
+  const below = { x: coord.x, y: coord.y + 1 };
+  return hasTileOrAppleUnder(coord, apples, rows)
+    || groundedBodyKeys?.has(coordKey(below))
+    || [...groundedSnakebots].some((snakebot) => snakebot.body.some((entry) => coordsEqual(entry, below)));
 }
 
 function dropSnakebot(snakebot: SimulatedSnakebot): void {
@@ -338,8 +313,4 @@ function cloneSnakebot(snakebot: Snakebot): SimulatedSnakebot {
 
 function coordsEqual(left: Coord, right: Coord): boolean {
   return left.x === right.x && left.y === right.y;
-}
-
-function manhattanDistance(left: Coord, right: Coord): number {
-  return Math.abs(left.x - right.x) + Math.abs(left.y - right.y);
 }

@@ -4,6 +4,7 @@ export type WeightKey =
   | "survivalImmediate"
   | "survivalAfterFall"
   | "applesEaten"
+  | "adjacentAppleStall"
   | "nearestAppleDistance"
   | "pathAppleDistance"
   | "gravityAppleDistance"
@@ -20,6 +21,7 @@ export type WeightKey =
   | "escapePressure"
   | "headToHeadPressure"
   | "opponentFirstReach"
+  | "friendlyHeadPressure"
   | "bodyCountDelta"
   | "headExposure";
 
@@ -30,6 +32,8 @@ export interface ExperimentConfig {
   weightKeys: WeightKey[];
   sparringCommand: string;
   seedSet: number[];
+  timeoutSeedSet: number[];
+  passiveSeedSet: number[];
   eliteCount: number;
   maxGenerations: number;
   mutationScale: number;
@@ -73,6 +77,16 @@ export const defaultExperimentConfig: ExperimentConfig = {
   populationSize: 24,
   gamesPerCandidate: 40,
   seedSet: [1, 7, 19, 31],
+  timeoutSeedSet: [
+    5556729728041560000,
+    766968810929167900,
+  ],
+  passiveSeedSet: [
+    1672425175878651600,
+    7548755813993756000,
+    3910911367656163300,
+    845531199520145500,
+  ],
   eliteCount: 4,
   maxGenerations: 10,
   mutationScale: 0.35,
@@ -89,6 +103,7 @@ export const defaultExperimentConfig: ExperimentConfig = {
     "survivalImmediate",
     "survivalAfterFall",
     "applesEaten",
+    "adjacentAppleStall",
     "nearestAppleDistance",
     "pathAppleDistance",
     "gravityAppleDistance",
@@ -105,6 +120,7 @@ export const defaultExperimentConfig: ExperimentConfig = {
     "escapePressure",
     "headToHeadPressure",
     "opponentFirstReach",
+    "friendlyHeadPressure",
     "bodyCountDelta",
     "headExposure",
   ],

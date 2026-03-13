@@ -2,7 +2,7 @@ import type { WeightKey } from "../config.js";
 import type { MatchSummary } from "../engine/runMatch.js";
 
 export type CandidateWeights = Record<WeightKey, number>;
-export type OpponentClass = "mirror" | "elite" | "archive";
+export type OpponentClass = "mirror" | "elite" | "archive" | "passive";
 
 export interface Candidate {
   id: string;
@@ -71,6 +71,8 @@ export interface RunManifest {
   startedAt: string;
   completedAt?: string;
   seedSet: number[];
+  timeoutSeedSet: number[];
+  passiveSeedSet: number[];
   populationSize: number;
   eliteCount: number;
   maxGenerations: number;
